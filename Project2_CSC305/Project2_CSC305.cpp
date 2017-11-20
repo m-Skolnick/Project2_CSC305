@@ -26,8 +26,7 @@ string db_password = "mskolnick";
 string db_name = "skolnickm";
 bool sendQuery(string query) {
 	int status;
-	string myQuery = query;
-	cout << "The Query is:" << myQuery << endl;
+	string myQuery = query;	
 	//cout << "Sending query ..."; 
 	cout.flush();
 	status = mysql_query(conn, myQuery.c_str());
@@ -35,12 +34,13 @@ bool sendQuery(string query) {
 	// if the query didn't work ...
 	if (status != 0)
 	{
-		// ... explain why ...
+		// ... explain why ...		
 		cout << mysql_error(&mysql) << endl;
+		cout << "The Query is:" << myQuery << endl;
 		return false;  // ... and exit program
 	}
 	else {
-		cout << "Query succeeded" << endl;
+		//cout << "Query succeeded" << endl;
 		return true;
 	}
 }
@@ -90,20 +90,20 @@ void addDialog() {
 			//Add the game to the database
 		if (sendQuery("insert into games values(\"" + vtName + "\"," + to_string(vtScore) + 
 			",\"" + htName + "\"," + to_string(htScore) + ")")) {
-			if (htScore > vtScore) {
-					//Update the records table if home team won
-				sendQuery("update records set w = w+1, pf = pf+"+to_string(htScore)+
-					", pa = pa+"+to_string(vtScore)+", wp = w/(w+l), pd = pf/pa where t_name = \"" + htName + "\"");
-				sendQuery("update records set l = l+1, pf = pf+" + to_string(vtScore) +
-					", pa = pa+" + to_string(htScore) + ", wp = w/(w+l), pd = pf/pa where t_name = \"" + vtName + "\"");
-			}
-			else if (vtScore > htScore) {
-					//Update the records table if visiting team won
-				sendQuery("update records set w = w+1, pf = pf+" + to_string(vtScore) +
-					", pa = pa+" + to_string(htScore) + ", wp = w/(w+l), pd = pf/pa where t_name = \"" + vtName + "\"");
-				sendQuery("update records set l = l+1, pf = pf+" + to_string(htScore) +
-					", pa = pa+" + to_string(vtScore) + ", wp = w/(w+l), pd = pf/pa where t_name = \"" + htName + "\"");
-			}			
+			//if (htScore > vtScore) {
+			//		//Update the records table if home team won
+			//	sendQuery("update records set w = w+1, pf = pf+"+to_string(htScore)+
+			//		", pa = pa+"+to_string(vtScore)+", wp = w/(w+l), pd = pf/pa where t_name = \"" + htName + "\"");
+			//	sendQuery("update records set l = l+1, pf = pf+" + to_string(vtScore) +
+			//		", pa = pa+" + to_string(htScore) + ", wp = w/(w+l), pd = pf/pa where t_name = \"" + vtName + "\"");
+			//}
+			//else if (vtScore > htScore) {
+			//		//Update the records table if visiting team won
+			//	sendQuery("update records set w = w+1, pf = pf+" + to_string(vtScore) +
+			//		", pa = pa+" + to_string(htScore) + ", wp = w/(w+l), pd = pf/pa where t_name = \"" + vtName + "\"");
+			//	sendQuery("update records set l = l+1, pf = pf+" + to_string(htScore) +
+			//		", pa = pa+" + to_string(vtScore) + ", wp = w/(w+l), pd = pf/pa where t_name = \"" + htName + "\"");
+			//}			
 		}
 		break;
 	}
@@ -184,12 +184,41 @@ void listDialog() {
 		break;
 	}
 }
-void populateRecordTable() {
+void updateRecordTable() {
 		//Count/calculate the wins/losses/pf/pa/wp and pd for each team 
-	sendQuery("select sum(pf) from games where ");
-
+	string teamList[100];
+	string teamName = "";
+	int i = 0;
+		//Get all of the records from the records table
+	sendQuery("select * from teams");
+	res = mysql_store_result(conn);
+	// go through each line (row) of the answer table
+	for (row = mysql_fetch_row(res);
+		row != NULL;
+		row = mysql_fetch_row(res))
+	{
+		// print out the first 2 colums; they are stored in
+		//    an "array-like" manner
+		teamName = row[1];
+			//Update wins and losses
+		sendQuery("update records set w = (select count(vt_name) from games where vt_name = \"" + teamName
+			+ "\" && vt_score > ht_score), w = w+(select count(vt_name) from games where ht_name = \"" + teamName
+			+ "\" && ht_score > vt_score), l = (select count(vt_name) from games where vt_name = \"" + teamName
+			+ "\" && vt_score < ht_score), l = l+(select count(vt_name) from games where ht_name = \"" + teamName
+			+ "\" && ht_score < vt_score) where t_name = \"" + teamName + "\"");
+			//Update points for points against, winning percentage and point differential
+		sendQuery("update records set pf = (select coalesce(sum(vt_score),0) from games where vt_name = \"" + teamName
+			+ "\"), pf = pf+(select coalesce(sum(ht_score),0) from games where ht_name = \"" + teamName
+			+ "\"), pa = (select coalesce(sum(ht_score),0) from games where vt_name = \"" + teamName
+			+ "\"), pa = pa+(select coalesce(sum(vt_score),0) from games where ht_name = \"" + teamName 
+			+ "\"), wp = w/(w+l), pd = pf/pa where t_name = \"" + teamName + "\"");
+	
+	}
+	// clean up the query
+	mysql_free_result(res);	
 }
 void standingsDialog() {
+	updateRecordTable();
 	//Print the standings from each of the teams
 	sendQuery("select * from records order by wp DESC, pd DESC, t_name DESC");
 	// get the query result(s)
@@ -210,6 +239,8 @@ void standingsDialog() {
 	cout << endl; // Add a line after printing data		
 }
 void recordDialog() {
+		//update the record table
+	updateRecordTable();
 	string tName = "";
 	cin >> tName;
 	//Print the record of the entered team
@@ -218,7 +249,8 @@ void recordDialog() {
 	res = mysql_store_result(conn);
 	//Print header
 	cout << "=Team=============W===L===PF===PA" << endl; //Print data label
-														 // go through each line (row) of the answer table
+	int rowCount = 0;
+		 // go through each line (row) of the answer table
 	for (row = mysql_fetch_row(res);
 		row != NULL;
 		row = mysql_fetch_row(res))
@@ -226,6 +258,10 @@ void recordDialog() {
 		// print out the colums
 		cout << " " << left << setw(17) << row[0] << setw(4) << row[1] << setw(4) << row[2]
 			<< setw(5) << row[3] << setw(5) << row[4] << endl;
+		rowCount++;
+	}
+	if (rowCount < 1) {
+		cout << "Sorry team name: \"" + tName + "\" not found in database";
 	}
 	// clean up the query
 	mysql_free_result(res);
@@ -281,7 +317,7 @@ int main()
 	else
 		cout << "DB connection established" << endl;
 	// now, send mysql our query ...
-	int status;
+	//int status;
 
 	/*
 

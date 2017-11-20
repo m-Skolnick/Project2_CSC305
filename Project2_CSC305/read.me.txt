@@ -1,0 +1,20 @@
+1. Name: Micaiah Skolnick
+2. Date: 11/20/17
+3. Developed on Windows 10 - 64 bit
+4. No special steps should be needed to compile project
+5. No outstanding bugs
+6. Summary:
+After signing into mysql server, four tables are created:
+cities - for listing of cities
+teams - for listing of teams
+games - for listing of games
+record - for listing of record for each team (ie.. standings)
+
+When input is read from the console, depending on the character code entered, 
+a function is called to handle the input. 
+Inside each function switch case statements handle which further function should
+be called to generate sql statements which manipulate the tables
+
+When a record or standings are wished to be retrieved, the "record" table is
+generated based on the table of games... In this way when a team is deleted, 
+the record table will still be returned with accurate results
