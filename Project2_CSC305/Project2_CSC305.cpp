@@ -20,17 +20,16 @@ mysql;   // local mysql data
 MYSQL_RES *res; // mysql query results
 MYSQL_ROW row;  // one row of a table (result)
 				// strings for mysql hostname, userid, ...
-string db_host = "lindenwoodcshome.ddns.net";
-string db_user = "skolnickm";
-string db_password = "mskolnick";
-string db_name = "skolnickm";
+string db_host;
+string db_user;
+string db_password;
+string db_name;
+//Sends query to mysql
 bool sendQuery(string query) {
 	int status;
 	string myQuery = query;	
-	//cout << "Sending query ..."; 
 	cout.flush();
 	status = mysql_query(conn, myQuery.c_str());
-	//cout << "Done" << endl;
 	// if the query didn't work ...
 	if (status != 0)
 	{
@@ -44,25 +43,25 @@ bool sendQuery(string query) {
 		return true;
 	}
 }
-// reads in a password without echoing it to the screen
-//string myget_passwd()
-//{ //****************************************NEED TO CHANGE THIS BACK to ask for password/username BEFORE SUBMITTING TO BLYTHE*******
-//	string passwd;
-//
-//	for (;;)
-//	{
-//		char ch;
-//		ch = _getch();           // get char WITHIOUT echo!
-//		if (ch == 13 || ch == 10) // if done ...
-//			break;           //  stop reading chars!
-//		cout << '*';  // dump * to screen
-//		passwd += ch;   // addd char to password
-//	}
-//	cin.sync(); // flush anything else in the buffer (remaining newline)
-//	cout << endl;  // simulate the enter that the user pressed
-//
-//	return passwd;
-//}
+//reads in a password without echoing it to the screen
+string myget_passwd()
+{
+	string passwd;
+	for (;;)
+	{
+		char ch;
+		ch = _getch();           // get char WITHIOUT echo!
+		if (ch == 13 || ch == 10) // if done ...
+			break;           //  stop reading chars!
+		cout << '*';  // dump * to screen
+		passwd += ch;   // addd char to password
+	}
+	cin.sync(); // flush anything else in the buffer (remaining newline)
+	cout << endl;  // simulate the enter that the user pressed
+
+	return passwd;
+}
+//Completes next step after an 'a' is entered to add data
 void addDialog() {
 	char code2 = 'q';
 	string cCode, cName, tName, vtName, htName;
@@ -88,23 +87,8 @@ void addDialog() {
 			//Get the visiting team name,team score,home team name, and home team score
 		cin >> vtName >> vtScore >> htName >> htScore;
 			//Add the game to the database
-		if (sendQuery("insert into games values(\"" + vtName + "\"," + to_string(vtScore) + 
-			",\"" + htName + "\"," + to_string(htScore) + ")")) {
-			//if (htScore > vtScore) {
-			//		//Update the records table if home team won
-			//	sendQuery("update records set w = w+1, pf = pf+"+to_string(htScore)+
-			//		", pa = pa+"+to_string(vtScore)+", wp = w/(w+l), pd = pf/pa where t_name = \"" + htName + "\"");
-			//	sendQuery("update records set l = l+1, pf = pf+" + to_string(vtScore) +
-			//		", pa = pa+" + to_string(htScore) + ", wp = w/(w+l), pd = pf/pa where t_name = \"" + vtName + "\"");
-			//}
-			//else if (vtScore > htScore) {
-			//		//Update the records table if visiting team won
-			//	sendQuery("update records set w = w+1, pf = pf+" + to_string(vtScore) +
-			//		", pa = pa+" + to_string(htScore) + ", wp = w/(w+l), pd = pf/pa where t_name = \"" + vtName + "\"");
-			//	sendQuery("update records set l = l+1, pf = pf+" + to_string(htScore) +
-			//		", pa = pa+" + to_string(vtScore) + ", wp = w/(w+l), pd = pf/pa where t_name = \"" + htName + "\"");
-			//}			
-		}
+		sendQuery("insert into games values(\"" + vtName + "\"," + to_string(vtScore) +
+			",\"" + htName + "\"," + to_string(htScore) + ")");
 		break;
 	}
 }
@@ -197,8 +181,7 @@ void updateRecordTable() {
 		row != NULL;
 		row = mysql_fetch_row(res))
 	{
-		// print out the first 2 colums; they are stored in
-		//    an "array-like" manner
+		//Update records table
 		teamName = row[1];
 			//Update wins and losses
 		sendQuery("update records set w = (select count(vt_name) from games where vt_name = \"" + teamName
@@ -212,7 +195,6 @@ void updateRecordTable() {
 			+ "\"), pa = (select coalesce(sum(ht_score),0) from games where vt_name = \"" + teamName
 			+ "\"), pa = pa+(select coalesce(sum(vt_score),0) from games where ht_name = \"" + teamName 
 			+ "\"), wp = w/(w+l), pd = pf/pa where t_name = \"" + teamName + "\"");
-	
 	}
 	// clean up the query
 	mysql_free_result(res);	
@@ -279,9 +261,8 @@ void deleteDialog() {
 void moveDialog() {
 	string tName = "",cCode = "";
 	cin >> tName >> cCode;
-	//Delete the entered team from everything
-	sendQuery("update teams set c_code = \"" + cCode + "\" where t_name = \"" + tName + "\"");
-	
+		//Update the city code on the city table
+	sendQuery("update teams set c_code = \"" + cCode + "\" where t_name = \"" + tName + "\"");	
 }
 int main()
 {
@@ -289,19 +270,15 @@ int main()
 	cout << "initializing client DB subsystem ..."; cout.flush();
 	mysql_init(&mysql);
 	cout << "Done!" << endl;
-
 	// get user credentials and mysql server info
 	cout << "Enter MySQL database hostname (or IP adress):";
-	//cin >> db_host; //****************************************NEED TO CHANGE THIS BACK to ask for password/username BEFORE SUBMITTING TO BLYTHE*******
-
+	cin >> db_host;
 	cout << "Enter MySQL database username:";
-	//cin >> db_user; //****************************************NEED TO CHANGE THIS BACK to ask for password/username BEFORE SUBMITTING TO BLYTHE*******
-
+	cin >> db_user;
 	cout << "Enter MySQL database password:";
-	//db_password = myget_passwd(); //****************************************NEED TO CHANGE THIS BACK to ask for password/username BEFORE SUBMITTING TO BLYTHE*******
+	db_password = myget_passwd();
 	// could also prompt for this, if desired
 	db_name = db_user;
-
 	// go out and connect to the mysql server
 	cout << "Connecting to remote DB ..."; cout.flush();
 	conn = mysql_real_connect(&mysql,
@@ -316,19 +293,7 @@ int main()
 	}
 	else
 		cout << "DB connection established" << endl;
-	// now, send mysql our query ...
-	//int status;
-
-	/*
-
-	string myQuery = "select * from brandNewTable";
-	cout << "What is the author name?";
-	string authName = "skolnickm"; //****************************************NEED TO CHANGE THIS BACK to just declaration BEFORE SUBMITTING TO BLYTHE*******
-	//cin >> authName; //*******************************NEED TO CHANGE THIS BACK to ask for password/username BEFORE SUBMITTING TO BLYTHE*******
-
-	myQuery += " where Name= \"";
-	myQuery += authName + "\"";
-	*/
+	
 		//Create tables for database
 	sendQuery("create table if not exists cities (c_code char(100) not null primary key, c_name char(100))");	
 	sendQuery("create table if not exists teams (c_code char(100) not null primary key, t_name char(100))");
